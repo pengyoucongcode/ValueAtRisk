@@ -130,8 +130,8 @@ double normsinv(const double p)
 	}
 }
 
-//计算投资组合期望收益率
-double expectedRateOfReturn(double num1[], double num2[],int len)
+//计算投资组合期望收益率,参数依次为期望收益率数组、投资比例数组、股票支数
+double expectedRateOfReturn(double num1[], double num2[],int len) 
 {
 	double result = 0.0;
 	for (int i = 0; i < len; i++)
@@ -141,14 +141,128 @@ double expectedRateOfReturn(double num1[], double num2[],int len)
 	return result;
 }
 
-int main()
+//计算协方差矩阵,参数依次为协方差矩阵、相关系数矩阵、标准差数组、维数
+void covarianceMatrix(double** num, double** num1, double num2[], int len) 
 {
-	//double count, bzc, jz, a; // 依次为总资本、标准差、收益率均值，置信水平
-	//cout << "请依次输出总资本（万元）、标准差、收益率均值，置信水平：";
-	//cin >> count >> bzc >> jz >> a;
-	//double Z = normsinv(1 - a);
-	//cout << "Z值：" << Z << endl;
-	//double VaR = count * (Z * bzc + jz);
-	//cout << "风险价值为(万元）：" << VaR << endl;
+	for (int i = 0; i < len; i++)
+	{
+		for (int j = 0; j < len; j++)
+		{
+			num[i][j] = num1[i][j] * num2[i] * num2[j];
+		}
+	}
 }
 
+// 计算组合标准差(分散标准差）,参数依次为标准差、投资比例、相关系数矩阵、维度
+double StandardDeviation(double num1[], double num2[], double** num3,int len)
+{
+	double* temp1, *temp2;
+	temp1 = new double[len];
+	temp2 = new double[len];
+	for (int i = 0; i < len; i++)
+	{
+		double t = num1[i] * num2[i];
+		temp1[i] = pow(t, 2);
+	}
+	int k = 0;
+	for (int i = 0; i < len-1; i++)
+	{
+		for (int j = i + 1; j < len; j++)
+		{
+			temp2[k++] = 2 * (num1[i] * num2[i]) * (num1[j] * num2[j]) * num3[i][j];
+		}
+	}
+	double sum = 0.0;
+	for (int i = 0; i < len; i++)
+		sum += (temp1[i] + temp2[i]);
+	double result = sqrt(sum);
+	return result;
+}
+
+// 非分散标准差计算，参数依次为标准差数组、投资比例数组、长度
+double nonDispersiveStandardDeviation(double num1[], double num2[],int len)
+{
+	double sum = 0.0;
+	for (int i = 0; i < len; i++)
+		sum += (num1[i] * num2[i]);
+	return sum;
+
+}
+
+// 风险价值计算，参数依次为投资总额、Z值（标准正态分布的抽样分位数）、标准差、期望收益率
+double VaR(double W, double Z, double R, double Q)
+{
+	double result = W*(Z*R+Q);
+	return result;
+}
+
+// 非分散风险价值，参数依次为总资本、Z值（标准正态分布的抽样分位数）、投资组合非分散标准差
+double VaR_Undx(double W, double Z, double R)
+{
+	double result = W * abs(Z) * R;
+	return result;
+}
+
+// 分散风险价值计算，参数依次为总资本、Z值（标准正态分布的抽样分位数）、投资组合分散标准差
+double VaR_dx(double W, double Z, double R)
+{
+	double result = W * abs(Z) * R;
+	return result;
+}
+int main()
+{
+	int len; // 股票支 数
+	double count; // 投资总资本
+	double a; // 置信度
+	double *rateOfReturn; // 期望收益率数组 
+	double* standardDeviation; // 标准差数组
+	double* proportion; // 投资比例数组
+	double** correlationCoefficient; // 相关系数矩阵
+	double** covariance; // 协方差矩阵
+	cout << "请输入总资本：";
+	cin >> count;
+	cout << "请输入一共有多少支股票：";
+	cin >> len;
+	correlationCoefficient = new double* [len];
+	covariance = new double* [len];
+	for (int i = 0; i < len; i++)
+	{
+		correlationCoefficient[i] = new double[len];
+		covariance[i] = new double[len];
+	}
+	rateOfReturn = new double[len];
+	standardDeviation = new double[len];
+	proportion = new double[len];
+	cout << "请依次输入每支股票的收益率、标准差、投资比例：" << endl;
+	for (int j = 0; j < len; j++)
+		cin >> rateOfReturn[j] >> standardDeviation[j] >> proportion[j];
+	cout << "请输入股票相关系数矩阵（规则：从左到右，从上到下）：" << endl;
+	for (int x = 0; x < len; x++)
+	{
+		for (int y = 0; y < len; y++)
+			cin >> correlationCoefficient[x][y];
+	}
+	double combinedRateOfReturn = expectedRateOfReturn(rateOfReturn, proportion, len);//组合期望收益率
+	covarianceMatrix(covariance, correlationCoefficient, standardDeviation, len);
+	cout << "该投资组合的期望收益率为：" << combinedRateOfReturn << endl;
+	cout << "协方差矩阵：" << endl;
+	for (int i = 0; i < len; i++)
+	{
+		for (int j = 0; j < len; j++) 
+			cout << covariance[i][j] << " ";
+		cout << endl;
+	}
+	double combinedStandardDeviation = StandardDeviation(standardDeviation,proportion, correlationCoefficient, len); // 分散标准差
+	cout << "该组合的标准差(分散标准差）：" << combinedStandardDeviation << endl;
+	double non_dispersiveStandardDeviation = nonDispersiveStandardDeviation(standardDeviation, proportion, len); // 非分散标准差
+	cout << "该组合的非分散标准差：" << non_dispersiveStandardDeviation << endl;
+	cout << "请输入置信度：";
+	cin >>a;
+	double Z = normsinv(1 - a);
+	double combinedRiskValue = VaR(count, Z, combinedStandardDeviation, combinedRateOfReturn); //组合风险价值
+	cout << "组合风险价值：" << combinedRiskValue << endl;
+	double diversified_risk_value = VaR_dx(count, Z, combinedStandardDeviation);
+	double non_distributed_risk_value = VaR_Undx(count, Z, non_dispersiveStandardDeviation);
+	cout << "该组合的分散风险价值：" << diversified_risk_value << " 非分散风险价值：" << non_distributed_risk_value << endl;
+	return 0;
+}
